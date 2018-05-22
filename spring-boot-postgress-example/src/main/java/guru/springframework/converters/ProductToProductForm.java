@@ -1,9 +1,10 @@
 package guru.springframework.converters;
 
-import guru.springframework.commands.ProductForm;
-import guru.springframework.domain.Product;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.stereotype.Component;
+
+import guru.springframework.commands.ProductForm;
+import guru.springframework.domain.Product;
 
 /**
  * Created by jt on 1/10/17.

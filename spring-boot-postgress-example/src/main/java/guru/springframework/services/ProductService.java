@@ -1,9 +1,9 @@
 package guru.springframework.services;
 
+import java.util.List;
+
 import guru.springframework.commands.ProductForm;
 import guru.springframework.domain.Product;
-
-import java.util.List;
 
 /**
  * Created by jt on 1/10/17.
