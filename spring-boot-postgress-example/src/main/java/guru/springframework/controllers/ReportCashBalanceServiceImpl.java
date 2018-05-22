@@ -21,11 +21,8 @@ import guru.springframework.domain.ReferenceValue;
 @Service
 public class ReportCashBalanceServiceImpl implements ReportCashBalanceService {
 
-	private static final String CASH_REPORT_ACCT_GROUP_PARENT = "CASH_REPORT_ACCT_GROUP_PARENT";
-	private static final String CASH_REPORT_CURRENCY = "CASH_REPORT_CURRENCY";
 	private static final String CURRENCY_REF_TYPE_KEY = "CURRENCY";
 
-	private static final String CASH_REPORT_ACCT_GROUP_MAP = "CASH_REPORT_ACCT_GROUP_MAP";
 
 
 
@@ -34,9 +31,14 @@ public class ReportCashBalanceServiceImpl implements ReportCashBalanceService {
 
 	@Autowired
 	private ReferenceDataService referenceDataService;
+	
+	@Autowired
+	private ReportConfigService reportConfigService;
 
 	@Override
 	public AccountCashBalanceSummary getAccountCashBalanceSummary() {
+		
+		ReportConfig reportConfig = reportConfigService.getReportConfig();
 		Set<String> accounts = new LinkedHashSet<String>();
 		accounts.add("APAC");
 		accounts.add("AACB");
@@ -45,9 +47,8 @@ public class ReportCashBalanceServiceImpl implements ReportCashBalanceService {
 		
 		LocalDate startDate = LocalDate.of(2018, 2, 28);
 		LocalDate endDate = LocalDate.of(2018, 3, 1);
-		Map<String, String> accountGroupMap = getAccountGroupMap();
-
-		Map<String, Set<String>> parentMap = getParentGroupFromDB();
+		Map<String, String> accountGroupMap = reportConfig.getCashBalanceAccountGroupMap();
+		Map<String, Set<String>> parentMap = reportConfig.getCashBalanceAccounts();
 
 		LocalDate exchangeRateDate = LocalDate.of(2018, 5, 10);
 
@@ -67,20 +68,20 @@ public class ReportCashBalanceServiceImpl implements ReportCashBalanceService {
 		return accountCashBalanceSummary;
 	}
 
-	private Map<String, MoneyTable> getMoneyBag(List<MoneyCell> allMonies, Set<String> accounts, LocalDate endDate,
+	private Map<String, MoneyTable> getMoneyBag(List<MoneyCell> allMonies, Map<String, Set<String>> parentMap, Set<String> accounts, LocalDate endDate,
 			Optional<String> exchangeCCY) {
 		Map<String, MoneyTable> cashBalanceMap = new HashMap<>();
 		String suffix = exchangeCCY.isPresent() ? exchangeCCY.get() : "";
 		for (String account : accounts) {
 
-			cashBalanceMap.put(account + suffix, getMoneyTable(account, allMonies));
+			cashBalanceMap.put(account + suffix, getMoneyTable(account, parentMap, allMonies));
 		}
 
 		return cashBalanceMap;
 	}
 
-	private MoneyTable getMoneyTable(String groupName, List<MoneyCell> allMonies) {
-		Set<String> accounts = getParentGroup(groupName);
+	private MoneyTable getMoneyTable(String groupName,  Map<String, Set<String>> parentMap, List<MoneyCell> allMonies) {
+		Set<String> accounts = parentMap.get(groupName);
 		List<MoneyCell> groupMonies = tableService.createDefaults(accounts, "AUD", BigDecimal.ZERO);
 		List<MoneyCell> filteredMonies = tableService.filterMoneyCellsByRowIds(allMonies, accounts);
 		groupMonies.addAll(filteredMonies);
@@ -88,67 +89,8 @@ public class ReportCashBalanceServiceImpl implements ReportCashBalanceService {
 		return moneyTable;
 	}
 
-	private Set<String> getCcyFromDB() {
-		List<ReferenceValue> refValues = referenceDataService.getReferenceDataByReferenceType(CASH_REPORT_CURRENCY);
 
-		Set<String> values = new LinkedHashSet<String>();
-		for (ReferenceValue refValue : refValues) {
-			values = new LinkedHashSet<String>();
-			String accountValues = refValue.getValue();
-			List<String> accountValuesList = new ArrayList<String>(Arrays.asList(accountValues.split(",")));
-			for (String item : accountValuesList) {
-				values.add(item.replace("\"", "").trim());
-			}
 
-		}
-		return values;
-
-	}
-
-	private Map<String, String> getAccountMapFromDB() {
-		List<ReferenceValue> refValues = referenceDataService.getReferenceDataByReferenceType(CASH_REPORT_ACCT_GROUP_MAP);
-		Map<String, String> parentMap = new HashMap<String, String>();
-		for (ReferenceValue refValue : refValues) {
-			parentMap.put(refValue.getKey(), refValue.getValue());
-		}
-
-		return parentMap;
-	}
-
-	private Map<String, Set<String>> getParentGroupFromDB() {
-		List<ReferenceValue> refValues = referenceDataService.getReferenceDataByReferenceType(CASH_REPORT_ACCT_GROUP_PARENT);
-		Map<String, Set<String>> parentMap = new HashMap<String, Set<String>>();
-		for (ReferenceValue refValue : refValues) {
-			String accountValues = refValue.getValue();
-			List<String> accountValuesList = new ArrayList<String>(Arrays.asList(accountValues.split(",")));
-			Set<String> values = new LinkedHashSet<String>();
-			for (String item : accountValuesList) {
-				values.add(item.replace("\"", "").trim());
-			}
-
-			parentMap.put(refValue.getKey(), values);
-
-		}
-
-		return parentMap;
-	}
-
-	private Set<String> getParentGroup(String groupName) {
-		Map<String, Set<String>> parentMap = new HashMap<String, Set<String>>();
-		parentMap = getParentGroupFromDB();
-		Set<String> val = parentMap.get(groupName);
-		if (val == null) {
-			val = parentMap.get(groupName);
-		}
-		return parentMap.get(groupName);
-	}
-
-	private Map<String, String> getAccountGroupMap() {
-
-		Map<String, String> accountGroupMap = getAccountMapFromDB();
-
-		return accountGroupMap;
-	}
 
 	private Set<String> getParentGroupStatic(String groupName) {
 		Map<String, Set<String>> parentMap = new HashMap<String, Set<String>>();
